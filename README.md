@@ -1,10 +1,10 @@
 # Sensitive Data Guard for Filament
 
-**Mask personal data in your Filament panels, require a reason to reveal it, and keep an audit trail of who saw what.**
+**Prove who saw which personal data, when and why.**
 
-Your support team needs the customer list. They don't need every IBAN, phone number and tax code in clear text on every screen. Your auditor, your DPO, or the regulator will eventually ask: *who looked at this customer's data, and why?*
+Your auditor, your DPO, a regulator or the customer themselves will eventually ask: *who looked at this person's data, and for what reason?* Sensitive Data Guard gives your Filament panels the answer, with evidence: an append-only access log of every view, reveal and export of sensitive data, with a purpose for each one, a report for data subject requests and alerts on unusual access.
 
-Sensitive Data Guard answers both with one method:
+To make that log complete, the data is masked on the server for everyone without permission, and seeing it in clear takes a reason. One method does it:
 
 ```php
 TextColumn::make('iban')->sensitive('iban'),
@@ -14,12 +14,13 @@ TextColumn::make('iban')->sensitive('iban'),
 
 ## What it does
 
-- **Masks on the server.** Users without permission get `IT•• •••• •••• •••• •••• •••3 456`. The clear value never reaches their browser: not in the HTML, not in the Livewire payload.
-- **Break the glass, with a reason.** Masked values have a *Show* action. The user picks a reason, adds details (ticket number, request reference) and sees the value for a few minutes. The reveal is logged immediately.
-- **Logs every access, never the value.** Views by permitted users, reveals and exports are written to an append-only access log, with user, record, field, reason, page, IP and time.
+- **Logs every access, never the value.** Views by permitted users, reveals and exports are written to an append-only access log: user, record, field, action, reason or purpose, page, IP, time and tenant. Never the value, never the record title.
+- **Records why.** A reveal requires a reason (support ticket, request from the data subject, fraud check…) plus details. Ordinary views and exports get a purpose too, set per role.
+- **Answers data subject requests.** One command produces, for one person, the dates, data and purposes of every access, with staff names withheld as the EU Court of Justice allows (case C-579/21).
 - **Flags unusual access.** Too many records revealed in an hour, the same record revealed again and again, or bulk browsing of unmasked data raise an alert to your DPO.
 - **Answers "who saw this?" in one click.** An access history action on any record, and a read-only access log with filters and CSV export for audits.
-- **Covers forms and exports too.** Edit forms become write-only for users who can't see a value; Filament exports contain clear values only for users with standing permission.
+- **Masks on the server.** Users without permission get `IT•• •••• •••• •••• •••• •••3 456`. The clear value never reaches their browser: not in the HTML, not in the Livewire payload, not in form state, not in exports. A log that the browser could bypass would prove nothing. See the [security model](docs/security-model.md) to check it yourself with the developer tools.
+- **Multi-tenant ready.** In panels with Filament tenancy, each tenant only sees its own access log.
 
 Built-in maskers: `iban`, `card`, `email`, `phone`, `tax_id`, `name`, `date_of_birth`, `partial`, `full` — or your own.
 
@@ -27,11 +28,11 @@ Works with **Filament 4 (4.1.8+) and 5**, Laravel 11–13, PHP 8.2+. English and
 
 ## Why
 
-- **GDPR** asks for appropriate technical measures, including access control and logging of access to personal data (art. 32), and for being able to demonstrate compliance (art. 5(2)).
-- **Supervisory authorities enforce it.** The Italian Garante, for instance, requires banks to track employee access to customer data, keep those logs for 24 months and alert on anomalous access; health-care providers have been fined for lacking access controls and anomaly alerts.
-- **HIPAA** (audit controls) and **SOC 2** ask the same question: who accessed sensitive data, when, and was it legitimate?
+- **GDPR** asks you to be able to demonstrate compliance (art. 5(2)), to protect personal data by default (art. 25) and to make sure staff only process it on instructions (art. 32). Data subjects may ask when and why their data was consulted (art. 15, CJEU C-579/21).
+- **Supervisory authorities enforce it.** The Italian Garante, for instance, requires banks to track every employee access to customer data, simple consultations included, keep those logs for 24 months and alert on anomalous access; health-care providers have been fined for lacking access controls and anomaly alerts.
+- **HIPAA** (audit controls, activity review), **SOC 2** (CC6, CC7) and **ISO/IEC 27001** (A.8.11 data masking, A.8.15 logging) ask the same question: who accessed sensitive data, when, and was it legitimate?
 
-This plugin is a technical building block, not legal advice. Check with your DPO or lawyer what applies to you.
+The [compliance mapping](docs/compliance.md) lists, rule by rule, what the plugin provides and what remains up to you. This plugin is a technical building block, not legal advice. Check with your DPO or lawyer what applies to you.
 
 ## Installation
 
@@ -103,6 +104,21 @@ SensitiveDataGuardPlugin::make()
     ->alertRecipientsUsing(fn () => User::role('dpo')->get())
     ->revealDuration(minutes: 5);
 ```
+
+## Record why: purposes
+
+Every access has a purpose. A reveal records the reason the user chose (and the details typed in the dialog). For ordinary views and exports by users with standing permission, set the purpose per role:
+
+```php
+SensitiveDataGuardPlugin::make()
+    ->defaultPurposeUsing(fn (User $user) => match (true) {
+        $user->hasRole('dpo') => 'legal_obligation',   // a reveal reason code: translated in reports
+        $user->hasRole('billing') => 'Invoicing and payments',
+        default => 'Customer support',
+    });
+```
+
+The closure also receives `$category`, `$record`, `$field` and `$action` (`AccessAction::View` or `AccessAction::Export`) by name. Without a closure, `log.default_purpose` in the config applies to everyone.
 
 ## Usage
 
@@ -206,7 +222,7 @@ A dashboard widget shows reveals, unmasked views and exported values of the last
 
 ![Dashboard widget with reveals, unmasked views and exported values](https://raw.githubusercontent.com/gemanzo/filament-sensitive-data-guard-docs/main/images/dashboard-widget.jpg)
 
-For audits and data subject requests:
+For audits, the full report of a period or of one record:
 
 ```bash
 php artisan sensitive-data-guard:report --from=2026-01-01 --to=2026-03-31 --output=storage/app/access-q1.csv
@@ -215,7 +231,26 @@ php artisan sensitive-data-guard:report --subject-type="App\Models\Customer" --s
 
 The CSV neutralises spreadsheet formulas typed into reasons.
 
-What is stored per access: user (type, id and name at the time), record (type and id), field, category, action, reason, panel, page path (no query string), IP address and user agent (both optional), and context. **Never the value.** Record titles are not stored either: they can be personal data themselves.
+What is stored per access: user (type, id and name at the time), record (type and id), field, category, action, reason, purpose, panel, tenant, page path (no query string), IP address and user agent (both optional), and context. **Never the value.** Record titles are not stored either: they can be personal data themselves.
+
+## Data subject requests
+
+When a person asks who consulted their data (GDPR art. 15), produce the report for them:
+
+```bash
+php artisan sensitive-data-guard:report --for-data-subject \
+    --subject-type="App\Models\Customer" --subject-id=42 --locale=it \
+    --output=storage/app/access-customer-42.csv
+```
+
+| Date | Personal data | Access | Purpose | Accessed by |
+|---|---|---|---|---|
+| 2026-03-02 10:15 UTC | IBAN | Revealed | Support ticket | Authorised staff member |
+| 2026-03-05 16:40 UTC | E-mail address | Viewed | Legal or regulatory obligation | Authorised staff member |
+
+The EU Court of Justice (case C-579/21, *Pankki S*, 2023) held that a data subject is entitled to the dates and purposes of consultations of their data, but not in principle to the identity of the employees who acted on the controller's instructions. So the report withholds staff names, and leaves out IP addresses, pages and the free-text details of reveals, which may concern other people. If you decide that an employee's identity is essential in a specific case, the full report above has it.
+
+Accesses to related records are included: a field shown through a relationship (`customer.iban` on an order) is logged against the customer who owns it.
 
 ## Alerts
 
@@ -246,13 +281,24 @@ php artisan queue:work   # Filament queues database notifications
 
 Without a queue worker the alert waits in the `jobs` table and never reaches the bell icon.
 
+## Multi-tenant panels
+
+In a panel with Filament tenancy (`->tenant(Team::class)`), each access records the current tenant, and the access log, the access history and the dashboard widget only show the current tenant's entries: one customer's DPO never sees another customer's log. Panels without tenancy, such as a super-admin panel, see every entry.
+
+Queued exports run without a current tenant. Tell the plugin how to find a record's tenant:
+
+```php
+SensitiveDataGuardPlugin::make()
+    ->resolveTenantUsing(fn (Model $record) => $record->team);
+```
+
 ## Configuration
 
 ```bash
 php artisan vendor:publish --tag=sensitive-data-guard-config
 ```
 
-Highlights: mask character, reveal duration, reason list, whether details are required, view de-duplication window, IP / user agent storage, retention, alert thresholds, cache store. Every option is documented in the file.
+Highlights: mask character, reveal duration, reason list, whether details are required, default purpose, view de-duplication window, IP / user agent storage, retention, alert thresholds, cache store. Every option is documented in the file.
 
 **More than one app server?** Reveals and de-duplication live in the cache: set `cache_store` to a shared store (Redis, Memcached, database).
 
@@ -263,6 +309,7 @@ Highlights: mask character, reveal duration, reason list, whether details are re
 - `->sensitive()` replaces the column's click action. A column with `->url()` keeps its URL and offers no in-place reveal.
 - Access logs are written at the end of the request (one bulk insert) or of the queued job. Reveals are written immediately. Set `log.strategy` to `immediate` to write every access right away.
 - Masking is about who *sees* data in your panel. It does not encrypt data at rest: combine it with Laravel's `encrypted` casts for that.
+- The [security model](docs/security-model.md) lists exactly what is guaranteed and where the protection ends.
 
 ## Testing
 

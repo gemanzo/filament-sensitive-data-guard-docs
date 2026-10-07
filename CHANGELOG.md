@@ -8,6 +8,9 @@ All notable changes to `filament-sensitive-data-guard` are documented here.
 - Server-side masking: clear values never reach the browser of users without permission
 - Reveal with a reason, temporary in-place access, logged immediately
 - Append-only access log with views, reveals and exports — never the values
+- Purpose recorded with every access: the chosen reason for reveals, `defaultPurposeUsing()` or `log.default_purpose` for views and exports
+- `sensitive-data-guard:report --for-data-subject` for data subject access requests (GDPR art. 15, CJEU C-579/21): dates, data and purposes, staff names withheld, `--locale`
+- Filament tenancy: the tenant is stored with each access, and the access log, history and widget only show the current tenant's entries; `resolveTenantUsing()` for queued exports
 - Relationship fields logged against the record that owns the data
 - Write-only edit forms for users who may not see a value
 - Built-in maskers: iban, card, email, phone, tax_id, name, date_of_birth, partial, full; custom maskers
