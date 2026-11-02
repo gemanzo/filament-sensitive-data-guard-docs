@@ -24,7 +24,7 @@ TextColumn::make('iban')->sensitive('iban'),
 
 Built-in maskers: `iban`, `card`, `email`, `phone`, `tax_id`, `name`, `date_of_birth`, `partial`, `full` — or your own.
 
-Works with **Filament 4 (4.1.8+) and 5**, Laravel 11–13, PHP 8.2+. English and Italian translations included.
+Works with **Filament 4 (4.1.8+) and 5**, Laravel 12–13, PHP 8.2+. English and Italian translations included.
 
 ## Why
 
