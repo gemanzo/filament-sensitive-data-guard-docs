@@ -40,7 +40,7 @@ Sensitive Data Guard does the opposite: the browser of a user without permission
 
 - Every leak test searches the Livewire payload as well as the HTML. Livewire's own `assertDontSee()` strips the component snapshot before searching, so a value leaking into the payload would go unnoticed; the plugin's tests pass `stripInitialData: false`.
 - The leak tests have been checked by breaking the code on purpose (for example, filling the form with the real value): they fail.
-- The suite runs on every supported combination of PHP 8.2–8.5, Laravel 11–13 and Filament 4 and 5, including the lowest allowed versions, and on MySQL and PostgreSQL as well as SQLite.
+- The suite runs on every supported combination of PHP 8.2–8.5, Laravel 12–13 and Filament 4 and 5, including the lowest allowed versions, and on MySQL and PostgreSQL as well as SQLite.
 
 ## Where the protection ends
 

@@ -20,4 +20,4 @@ All notable changes to `filament-sensitive-data-guard` are documented here.
 - `sensitive-data-guard:report` command for audits and data subject requests
 - Retention through `model:prune`
 - English and Italian translations
-- Filament 4 (4.1.8+) and 5, Laravel 11–13, PHP 8.2+
+- Filament 4 (4.1.8+) and 5, Laravel 12–13, PHP 8.2+
